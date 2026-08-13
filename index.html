@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rot32 Control</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #eef1f4;
+  --panel: #ffffff;
+  --text: #10141a;
+  --muted: #403d48;
+  --accent: #4f46e5;
+  --accent-text: #ffffff;
+  --border: #cac6d1;
+  --ok: #15803d;
+  --bad: #b91c1c;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Roboto Mono", "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11151a;
+    --panel: #333333;
+    --text: #ffffe3;
+    --muted: #cbcbcb;
+    --accent: #648bb5;
+    --accent-text: #14122a;
+    --border: #31577c;
+    --ok: #4ade80;
+    --bad: #f87171;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0 auto;
+  padding: 16px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  max-width: 1600px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+/* Flows into as many 340px columns as the window fits, collapsing to one
+   column on a phone. This uses multi-column, not grid, since card heights
+   differ a lot and a grid would size every row to its tallest card. */
+main {
+  columns: 340px;
+  column-gap: 16px;
+}
+main > section {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  margin-bottom: 12px;
+}
+h1 {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0;
+}
+h2 {
+  font-size: 0.85rem;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+h3 { font-size: 0.85rem; margin: 18px 0 6px; letter-spacing: 0.02em; position: relative; }
+section {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 16px;
+}
+.reading { display: flex; flex-direction: column; }
+.reading .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.reading .value {
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.target { width: 100%; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+.readouts { display: flex; gap: 24px; align-items: baseline; flex-wrap: wrap; }
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  grid-template-rows: repeat(3, 64px);
+  gap: 8px;
+  justify-content: center;
+  margin: 8px 0 16px;
+}
+.dpad-btn {
+  font-size: 1.4rem;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.dpad-btn:active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.dpad-btn.up { grid-column: 2; grid-row: 1; }
+.dpad-btn.left { grid-column: 1; grid-row: 2; }
+.dpad-btn.stop { grid-column: 2; grid-row: 2; color: var(--bad); border-color: var(--bad); }
+.dpad-btn.right { grid-column: 3; grid-row: 2; }
+.dpad-btn.down { grid-column: 2; grid-row: 3; }
+label {
+  display: block;
+  position: relative;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 10px 0 4px;
+}
+[data-tip] { cursor: help; }
+[data-tip]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 20;
+  width: 100%;
+  margin-top: 4px;
+  padding: 9px 11px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease;
+}
+[data-tip]:hover::after, [data-tip]:focus::after { opacity: 1; visibility: visible; }
+input[type="number"], input[type="range"], select {
+  width: 100%;
+  padding: 8px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  accent-color: var(--accent);
+}
+label.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text);
+}
+label.checkbox input { width: auto; accent-color: var(--accent); }
+button {
+  padding: 10px 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+button[type="submit"], .primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+button:disabled { opacity: 0.4; cursor: default; }
+.row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.hint { font-size: 0.8rem; color: var(--muted); }
+.saved {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ok);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-left: 8px;
+}
+.saved:not(:empty)::before { content: "[ "; }
+.saved:not(:empty)::after { content: " ]"; }
+.warning {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 2px;
+  background: transparent;
+  border: 1px solid var(--bad);
+  color: var(--bad);
+  font-size: 0.85rem;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Rot32</h1>
+</header>
+
+<main>
+
+<section class="status">
+  <h2>Position</h2>
+  <div class="readouts">
+    <div class="reading"><span class="label">Azimuth</span><span id="az" class="value">--</span></div>
+    <div class="reading"><span class="label">Elevation</span><span id="el" class="value">--</span></div>
+    <div id="target" class="target"></div>
+  </div>
+  <div id="sensor-warning" class="warning" style="display:none;"></div>
+</section>
+
+<section class="control">
+  <h2>Manual Control</h2>
+  <div class="dpad">
+    <button id="btn-up" class="dpad-btn up">&#9650;</button>
+    <button id="btn-left" class="dpad-btn left">&#9664;</button>
+    <button id="btn-stop" class="dpad-btn stop">&#9632;</button>
+    <button id="btn-right" class="dpad-btn right">&#9654;</button>
+    <button id="btn-down" class="dpad-btn down">&#9660;</button>
+  </div>
+  <label for="speed" tabindex="0">Speed (%)</label>
+  <input type="range" id="speed" min="10" max="100" value="60">
+</section>
+
+<section class="goto">
+  <h2>Go To Position</h2>
+  <form id="goto-form">
+    <label for="goto-az" tabindex="0">Azimuth (&deg;)</label>
+    <input type="number" id="goto-az" step="0.1" min="0" max="359.9" value="0">
+    <label for="goto-el" tabindex="0">Elevation (&deg;)</label>
+    <input type="number" id="goto-el" step="0.1" min="-10" max="90" value="0">
+    <div class="row">
+      <button type="submit" class="primary">Go</button>
+      <button type="button" id="btn-park">Park</button>
+      <button type="button" id="btn-reset">Reset</button>
+    </div>
+  </form>
+</section>
+
+<section class="tuning">
+  <h2>Motion Tuning</h2>
+  <form id="tune-form">
+    <label for="tune-tol" tabindex="0" data-tip="When rotator is at least this close to target, it will stop.">Arrival window (&deg;)</label>
+    <input type="number" id="tune-tol" step="0.1">
+
+    <label for="tune-approach" tabindex="0" data-tip="Speed the rotator is travelling at when it arrives. Increase it if rotator stalls short of target.">Arrival speed (%)</label>
+    <input type="number" id="tune-approach" step="1">
+
+    <label for="tune-ramp" tabindex="0" data-tip="Distance from the target where the taper down to arrival speed begins. Must be larger than the arrival window.">Slow-down distance (&deg;)</label>
+    <input type="number" id="tune-ramp" step="0.5">
+
+    <label for="tune-accel" tabindex="0" data-tip="How fast commanded speed may change; 200 means 0 to 100% in half a second.">Acceleration (% per second)</label>
+    <input type="number" id="tune-accel" step="10">
+
+    <div class="row">
+      <button type="submit" class="primary">Save Tuning</button>
+      <button type="button" id="tune-defaults">Restore Defaults</button>
+      <span id="tune-saved" class="saved"></span>
+    </div>
+    <div id="tune-error" class="warning" style="display:none;"></div>
+  </form>
+</section>
+
+<section class="calibration">
+  <h2>Calibration</h2>
+  <form id="cal-form">
+    <label for="cal-decl" tabindex="0" data-tip="Difference between magnetic and true north at your location.">Magnetic declination (&deg;)</label>
+    <input type="number" id="cal-decl" step="0.1">
+
+    <h3>Azimuth</h3>
+    <label class="checkbox" tabindex="0"><input type="checkbox" id="cal-inv-az"> Invert azimuth</label>
+    <label for="cal-az-off" tabindex="0">Azimuth offset (&deg;)</label>
+    <input type="number" id="cal-az-off" step="0.1">
+    <label for="cal-az-axis" tabindex="0">Azimuth forward axis</label>
+    <select id="cal-az-axis">
+      <option value="X">X</option>
+      <option value="Y">Y</option>
+      <option value="Z">Z</option>
+    </select>
+
+    <h3>Elevation</h3>
+    <label class="checkbox" tabindex="0"><input type="checkbox" id="cal-inv-el"> Invert elevation</label>
+    <label for="cal-el-off" tabindex="0">Elevation offset (&deg;)</label>
+    <input type="number" id="cal-el-off" step="0.1">
+    <label for="cal-el-pair" tabindex="0">Elevation axis pair</label>
+    <select id="cal-el-pair">
+      <option value="XY">X, Y</option>
+      <option value="XZ">X, Z</option>
+      <option value="YZ">Y, Z</option>
+    </select>
+
+    <label for="cal-filter" tabindex="0">Smoothing (<span id="cal-filter-val">0</span>%)</label>
+    <input type="range" id="cal-filter" min="0" max="95" value="0">
+
+    <label for="cal-motion" tabindex="0" data-tip="Movements smaller than this are smoothed as noise, larger ones pass through unfiltered.">Motion threshold (&deg;)</label>
+    <input type="number" id="cal-motion" step="0.5" min="0" max="45">
+
+    <div class="row">
+      <button type="submit" class="primary">Save Calibration</button>
+      <span id="cal-saved" class="saved"></span>
+    </div>
+  </form>
+
+  <h3 tabindex="0" data-tip="Corrects fixed magnetic bias from nearby ferrous material (i.e. screws affixing LSM303 module). Cannot fix distortion from something that does not rotate with the sensor, such as a steel mast.">Magnetometer Calibration</h3>
+  <p class="hint">Start, rotate the sensor slowly through a full 360&deg;
+  sweep (and its elevation range if possible) for 30&ndash;60 seconds, then
+  Finish.</p>
+  <div class="row">
+    <button id="mag-start">Start</button>
+    <button id="mag-finish" disabled>Finish</button>
+    <button id="mag-cancel" disabled>Cancel</button>
+  </div>
+  <p id="mag-progress" class="hint"></p>
+  <p id="mag-offsets" class="hint"></p>
+</section>
+
+</main>
+
+<script>
+const DIR = {UP: 2, DOWN: 4, LEFT: 8, RIGHT: 16};
+let magPollTimer = null;
+
+async function api(method, path, body) {
+  const opts = {method: method};
+  if (body !== undefined) {
+    opts.headers = {"Content-Type": "application/json"};
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(path, opts);
+  return res.json();
+}
+
+function speed() {
+  return parseInt(document.getElementById("speed").value, 10);
+}
+
+async function refreshStatus() {
+  try {
+    const s = await api("GET", "/api/status");
+    const azEl = document.getElementById("az");
+    const elEl = document.getElementById("el");
+    if (s.azimuth !== null && s.azimuth !== undefined) {
+      azEl.textContent = s.azimuth.toFixed(1) + "°";
+      elEl.textContent = s.elevation.toFixed(1) + "°";
+    } else {
+      azEl.textContent = "--";
+      elEl.textContent = "--";
+    }
+    const t = document.getElementById("target");
+    t.textContent = (s.target_azimuth !== null && s.target_azimuth !== undefined)
+      ? "Target: " + s.target_azimuth.toFixed(1) + "° az, " + s.target_elevation.toFixed(1) + "° el"
+      : "";
+
+    const warning = document.getElementById("sensor-warning");
+    if (!s.sensor_ready) {
+      warning.textContent = "Sensor not connected, retrying in the background.";
+      warning.style.display = "block";
+    } else if (s.last_error) {
+      warning.textContent = "Last control error: " + s.last_error;
+      warning.style.display = "block";
+    } else {
+      warning.style.display = "none";
+    }
+  } catch (e) {
+    // Status poll failed. Nothing to update; there is no connection indicator.
+  }
+}
+setInterval(refreshStatus, 1000);
+refreshStatus();
+
+function bindHold(id, dir) {
+  const el = document.getElementById(id);
+  const start = (e) => { e.preventDefault(); api("POST", "/api/move", {direction: dir, speed: speed()}); };
+  const stop = (e) => { e.preventDefault(); api("POST", "/api/stop"); };
+  el.addEventListener("pointerdown", start);
+  el.addEventListener("pointerup", stop);
+  el.addEventListener("pointerleave", stop);
+  el.addEventListener("pointercancel", stop);
+}
+bindHold("btn-up", DIR.UP);
+bindHold("btn-down", DIR.DOWN);
+bindHold("btn-left", DIR.LEFT);
+bindHold("btn-right", DIR.RIGHT);
+
+document.getElementById("btn-stop").addEventListener("click", () => api("POST", "/api/stop"));
+document.getElementById("btn-park").addEventListener("click", () => api("POST", "/api/park"));
+document.getElementById("btn-reset").addEventListener("click", () => api("POST", "/api/reset"));
+
+document.getElementById("goto-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  api("POST", "/api/goto", {
+    azimuth: parseFloat(document.getElementById("goto-az").value),
+    elevation: parseFloat(document.getElementById("goto-el").value),
+  });
+});
+
+async function loadCalibration() {
+  const c = await api("GET", "/api/calibration");
+  document.getElementById("cal-decl").value = c.mag_declination_deg;
+  document.getElementById("cal-az-off").value = c.azimuth_offset_deg;
+  document.getElementById("cal-el-off").value = c.elevation_offset_deg;
+  document.getElementById("cal-inv-az").checked = c.invert_azimuth;
+  document.getElementById("cal-inv-el").checked = c.invert_elevation;
+  document.getElementById("cal-az-axis").value = c.azimuth_forward_axis;
+  document.getElementById("cal-el-pair").value = c.elevation_axis_pair;
+  const filterPct = Math.round(c.filter_strength * 100);
+  document.getElementById("cal-filter").value = filterPct;
+  document.getElementById("cal-filter-val").textContent = filterPct;
+  document.getElementById("cal-motion").value = c.motion_threshold_deg;
+  document.getElementById("mag-offsets").textContent =
+    "Offsets: X=" + c.mag_offset_x.toFixed(1) + " Y=" + c.mag_offset_y.toFixed(1) + " Z=" + c.mag_offset_z.toFixed(1) +
+    "  |  Scale: X=" + c.mag_scale_x.toFixed(2) + " Y=" + c.mag_scale_y.toFixed(2) + " Z=" + c.mag_scale_z.toFixed(2);
+}
+loadCalibration();
+
+document.getElementById("cal-filter").addEventListener("input", (e) => {
+  document.getElementById("cal-filter-val").textContent = e.target.value;
+});
+
+document.getElementById("cal-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  await api("POST", "/api/calibration", {
+    mag_declination_deg: parseFloat(document.getElementById("cal-decl").value),
+    azimuth_offset_deg: parseFloat(document.getElementById("cal-az-off").value),
+    elevation_offset_deg: parseFloat(document.getElementById("cal-el-off").value),
+    invert_azimuth: document.getElementById("cal-inv-az").checked,
+    invert_elevation: document.getElementById("cal-inv-el").checked,
+    azimuth_forward_axis: document.getElementById("cal-az-axis").value,
+    elevation_axis_pair: document.getElementById("cal-el-pair").value,
+    filter_strength: parseInt(document.getElementById("cal-filter").value, 10) / 100,
+    motion_threshold_deg: parseFloat(document.getElementById("cal-motion").value),
+  });
+  const saved = document.getElementById("cal-saved");
+  saved.textContent = "Saved";
+  setTimeout(() => { saved.textContent = ""; }, 2000);
+});
+
+const TUNE_FIELDS = {
+  "tune-tol": "position_tolerance_deg",
+  "tune-approach": "approach_speed_percent",
+  "tune-ramp": "speed_ramp_deg",
+  "tune-accel": "speed_accel_percent_per_sec",
+};
+let tuningDefaults = {};
+
+function fillTuning(values) {
+  for (const id in TUNE_FIELDS) {
+    const v = values[TUNE_FIELDS[id]];
+    if (v !== undefined && v !== null) {
+      document.getElementById(id).value = Math.round(v * 100) / 100;
+    }
+  }
+}
+
+function collectTuning() {
+  const body = {};
+  for (const id in TUNE_FIELDS) {
+    const v = parseFloat(document.getElementById(id).value);
+    // Skips blanks instead of sending NaN. NaN serialises to null, and
+    // null means leave unchanged.
+    if (!isNaN(v)) body[TUNE_FIELDS[id]] = v;
+  }
+  return body;
+}
+
+function tuneMessage(text, isError) {
+  const errEl = document.getElementById("tune-error");
+  const savedEl = document.getElementById("tune-saved");
+  if (isError) {
+    errEl.textContent = text;
+    errEl.style.display = "block";
+    savedEl.textContent = "";
+  } else {
+    errEl.style.display = "none";
+    savedEl.textContent = text;
+    if (text) setTimeout(() => { savedEl.textContent = ""; }, 2500);
+  }
+}
+
+async function loadTuning() {
+  const t = await api("GET", "/api/tuning");
+  tuningDefaults = t.defaults || {};
+  const limits = t.limits || {};
+  for (const id in TUNE_FIELDS) {
+    const b = limits[TUNE_FIELDS[id]];
+    if (b) {
+      const el = document.getElementById(id);
+      el.min = b[0];
+      el.max = b[1];
+    }
+  }
+  fillTuning(t);
+}
+loadTuning();
+
+document.getElementById("tune-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  // Uses a raw fetch, not api(), because api() drops the status code. This
+  // is the one endpoint where that matters, because a 400 status carries a
+  // rejection reason.
+  try {
+    const res = await fetch("/api/tuning", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(collectTuning()),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      tuneMessage(data.error || "Save failed.", true);
+      return;
+    }
+    fillTuning(data);
+    tuneMessage("Saved", false);
+  } catch (err) {
+    tuneMessage("Save failed: " + err, true);
+  }
+});
+
+document.getElementById("tune-defaults").addEventListener("click", () => {
+  // Populates the fields only, so a misclick cannot re-tune a rotator
+  // mid-session.
+  fillTuning(tuningDefaults);
+  tuneMessage("Defaults loaded, press Save Tuning to apply.", false);
+});
+
+document.getElementById("mag-start").addEventListener("click", async () => {
+  await api("POST", "/api/calibration/mag/start");
+  document.getElementById("mag-start").disabled = true;
+  document.getElementById("mag-finish").disabled = false;
+  document.getElementById("mag-cancel").disabled = false;
+  document.getElementById("mag-progress").textContent = "Sampling… rotate the sensor now.";
+  magPollTimer = setInterval(pollMagStatus, 500);
+});
+
+async function pollMagStatus() {
+  const s = await api("GET", "/api/calibration/mag/status");
+  const quality = (s.range_x > 200 && s.range_y > 200 && s.range_z > 200)
+    ? "Good coverage" : "Keep rotating through all orientations";
+  document.getElementById("mag-progress").textContent =
+    "X range: " + s.range_x + "  Y range: " + s.range_y + "  Z range: " + s.range_z + "  |  " + quality;
+}
+
+document.getElementById("mag-finish").addEventListener("click", async () => {
+  clearInterval(magPollTimer);
+  const result = await api("POST", "/api/calibration/mag/finish");
+  document.getElementById("mag-progress").textContent =
+    "Applied. Offsets: X=" + result.mag_offset_x.toFixed(1) + " Y=" + result.mag_offset_y.toFixed(1) + " Z=" + result.mag_offset_z.toFixed(1) +
+    "  |  Scale: X=" + result.mag_scale_x.toFixed(2) + " Y=" + result.mag_scale_y.toFixed(2) + " Z=" + result.mag_scale_z.toFixed(2);
+  document.getElementById("mag-start").disabled = false;
+  document.getElementById("mag-finish").disabled = true;
+  document.getElementById("mag-cancel").disabled = true;
+  loadCalibration();
+});
+
+document.getElementById("mag-cancel").addEventListener("click", async () => {
+  clearInterval(magPollTimer);
+  await api("POST", "/api/calibration/mag/cancel");
+  document.getElementById("mag-progress").textContent = "Cancelled.";
+  document.getElementById("mag-start").disabled = false;
+  document.getElementById("mag-finish").disabled = true;
+  document.getElementById("mag-cancel").disabled = true;
+});
+</script>
+</body>
+</html>
