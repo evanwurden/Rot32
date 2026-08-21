@@ -1,11 +1,29 @@
 # Rot32
 
-## Hardware Requirements
+Rot32 is an extremely low-cost (<150USD) ESP32-based antenna rotator which is suitable for amateur radio operators or hobbyists. It utilizes commonly available hardware and is easy to assemble, wire, and program.
 
-- ESP32 board running MicroPython
-- LSM303 accelerometer/magnetometer on I2C
-- Generic H-bridge motor driver, sharing a ground with the ESP32
-- A two-axis (azimuth/elevation) rotator
+# Features
+- 3D printable enclosure and gearing. Enclosure fits within 256x256mm bed 
+- LSM303 Accelerometer/Magnetometer automatically determines the current heading and elevation
+- Worm gear motor drive locks position without power applied
+- Wide antenna mast can steer multiple antennas at once while staying
+- Rotctld protocol emulation over Wi-Fi allows all hamlib compatible applications to interface with the rotator
+- Web interface for manual steering and changing motion and calibration parameters on the fly.
+
+<br>
+
+# Build
+
+## Bill Of Materials
+- 1kg Spool 3D Printing Filament (Preferably PETG, ABS/ASA)
+- 4x R16-2RS Ball Bearings (2in OD, 1in ID, 1/2in Thickness)
+- About 5ft 0.75in aluminum tubing
+- 2x JGY-370 12V 6rpm DC Worm Gear Motor
+- 6x M3 Plastite Screws
+- M3/M4 Nut/Screw Assortment
+- ESP32-S3 Dev Board
+- L298N H-Bridge Motor Driver
+
 
 ## Wiring
 
@@ -18,7 +36,7 @@ Defaults from `config.py` for ESP32-S3
 | AZ+ / AZ- (PWM) | GPIO4 / GPIO5 |
 | EL+ / EL- (PWM) | GPIO6 / GPIO7 |
 
-## Install
+## Firmware Install
 
 1. Flash MicroPython from
    [micropython.org/download](https://micropython.org/download/) for your
@@ -28,6 +46,9 @@ Defaults from `config.py` for ESP32-S3
 4. Reset the board. The IP address is recorded in the log, readable at
    `http://<device-ip>/api/log` or over serial with `SERIAL_LOGGING_ENABLED`.
 
+<br>
+
+# Usage 
 ## Web UI
 
 Browse to `http://<device-ip>/` for a simple control interface:
@@ -90,3 +111,13 @@ The extended response protocol is supported by prefixing a command with `+`:
 ```sh
 printf '+\\get_pos\n' | nc 192.168.1.50 4533
 ```
+
+
+
+# Future Improvements
+- Enclosure design should be tested to failure and revised accordingly. There is room for improvement in the screw standoff design which mates the two halves.
+- Better waterproofing could be achieved through gasketing material around the edges and using shaft seals or some other 3D printed rubber to prevent water ingress at the bearings.
+- Spur gear design can be revised to reduce backlash. A belt-drive was tested but tensioning became complicated and required more space.
+- Gear-to-pipe connections should use a circumferential clamping force rather than a set screw. Aluminum is soft and a screw pressing directly into the pipe works itself loose over time.
+- Encoders can be implemented for better precision. JGY worm gear motors are available with built-in encoders.
+- LSM303 motion algorithm can be improved. Magnetometer calibration is quite good for static precision but polling rate and filtering could use some work.
